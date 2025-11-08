@@ -15,12 +15,16 @@ RUN npm install --production
 # Copiar el código fuente
 COPY . .
 
+# Copiar y dar permisos al script de inicialización
+COPY init-db-docker.sh /app/
+RUN chmod +x /app/init-db-docker.sh
+
 # Exponer puerto
 EXPOSE 3000
 
 # Variable de entorno por defecto
 ENV NODE_ENV=production
 
-# Comando para iniciar la aplicación
-CMD ["node", "server.js"]
+# Comando para iniciar la aplicación (con inicialización de DB)
+CMD ["/app/init-db-docker.sh"]
 
