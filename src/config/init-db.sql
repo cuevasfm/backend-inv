@@ -101,10 +101,15 @@ CREATE TABLE customers (
     tax_id VARCHAR(50),
     email VARCHAR(100) UNIQUE,
     phone VARCHAR(20),
-    address TEXT,
-    city VARCHAR(100),
-    state VARCHAR(100),
+    -- Dirección detallada (nuevo formato)
+    street VARCHAR(255),
+    exterior_number VARCHAR(50),
+    interior_number VARCHAR(50),
+    neighborhood VARCHAR(100),
     postal_code VARCHAR(10),
+    municipality VARCHAR(100),
+    state VARCHAR(100),
+    -- Campos financieros
     credit_limit DECIMAL(10,2) DEFAULT 0,
     current_balance DECIMAL(10,2) DEFAULT 0,
     loyalty_points INTEGER DEFAULT 0,
