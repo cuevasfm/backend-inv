@@ -136,7 +136,18 @@ const Product = sequelize.define('Product', {
 }, {
   tableName: 'products',
   timestamps: true,
-  underscored: true
+  underscored: true,
+  hooks: {
+    beforeCreate: async (product) => {
+      // Generar SKU automáticamente si no se proporciona
+      if (!product.sku) {
+        // Usar el timestamp para garantizar unicidad
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        product.sku = `PRD-${timestamp}${random}`;
+      }
+    }
+  }
 });
 
 module.exports = Product;
