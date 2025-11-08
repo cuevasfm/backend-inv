@@ -50,6 +50,13 @@ router.delete(
 );
 
 router.post(
+  '/:id/restore',
+  authenticate,
+  authorize('admin', 'manager'),
+  productController.restoreProduct
+);
+
+router.post(
   '/:id/adjust-stock',
   authenticate,
   authorize('admin', 'manager', 'warehouse'),

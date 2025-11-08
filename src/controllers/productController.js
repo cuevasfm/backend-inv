@@ -117,6 +117,29 @@ exports.getProductByBarcode = async (req, res, next) => {
 // Crear producto
 exports.createProduct = async (req, res, next) => {
   try {
+    const { barcode } = req.body;
+
+    // Verificar si existe un producto eliminado con el mismo código de barras
+    if (barcode) {
+      const deletedProduct = await Product.findOne({
+        where: { barcode, isActive: false }
+      });
+
+      if (deletedProduct) {
+        return res.status(409).json({
+          error: 'PRODUCT_DELETED',
+          message: 'Ya existe un producto eliminado con este código de barras',
+          product: {
+            id: deletedProduct.id,
+            name: deletedProduct.name,
+            sku: deletedProduct.sku,
+            barcode: deletedProduct.barcode,
+            currentStock: deletedProduct.currentStock
+          }
+        });
+      }
+    }
+
     const product = await Product.create(req.body);
 
     // Cargar relaciones
@@ -241,6 +264,16 @@ exports.deleteProduct = async (req, res, next) => {
       });
     }
 
+    // Guardar datos completos para poder restaurar
+    const productData = {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      retailPrice: product.retailPrice,
+      currentStock: product.currentStock
+    };
+
     // Soft delete
     await product.update({ isActive: false });
 
@@ -254,7 +287,7 @@ exports.deleteProduct = async (req, res, next) => {
       entityId: product.id,
       entityName: product.name,
       description: `Producto eliminado (desactivado): ${product.name} (SKU: ${product.sku})`,
-      oldValues: { isActive: true },
+      oldValues: { isActive: true, ...productData },
       newValues: { isActive: false },
       ipAddress: requestInfo.ipAddress,
       userAgent: requestInfo.userAgent
@@ -262,6 +295,63 @@ exports.deleteProduct = async (req, res, next) => {
 
     res.json({
       message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Restaurar producto
+exports.restoreProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const product = await Product.findByPk(id);
+
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+
+    if (product.isActive) {
+      return res.status(400).json({
+        error: 'Product is already active'
+      });
+    }
+
+    // Restaurar producto
+    await product.update({ isActive: true });
+
+    // Recargar con relaciones
+    await product.reload({
+      include: [
+        { model: Category, as: 'category' },
+        { model: Brand, as: 'brand' },
+        { model: ProductType, as: 'productType' },
+        { model: UnitType, as: 'unitType' }
+      ]
+    });
+
+    // Registrar log de auditoría
+    const requestInfo = getRequestInfo(req);
+    await logAction({
+      userId: req.user?.id,
+      username: req.user?.username,
+      action: 'UPDATE',
+      module: 'products',
+      entityId: product.id,
+      entityName: product.name,
+      description: `Producto restaurado: ${product.name} (SKU: ${product.sku})`,
+      oldValues: { isActive: false },
+      newValues: { isActive: true },
+      ipAddress: requestInfo.ipAddress,
+      userAgent: requestInfo.userAgent
+    });
+
+    res.json({
+      message: 'Product restored successfully',
+      product
     });
   } catch (error) {
     next(error);
