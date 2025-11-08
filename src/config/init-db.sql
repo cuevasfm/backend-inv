@@ -1,8 +1,5 @@
--- Crear base de datos
-CREATE DATABASE licoreria_inventory;
-
--- Conectar a la base de datos
-\c licoreria_inventory;
+-- Nota: La base de datos ya debe estar creada antes de ejecutar este script
+-- El script asume que ya estás conectado a la base de datos correcta
 
 -- Tabla: categories
 CREATE TABLE categories (
