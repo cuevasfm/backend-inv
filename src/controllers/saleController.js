@@ -247,12 +247,14 @@ exports.getAll = async (req, res) => {
     });
 
     res.json({
-      sales,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        pageSize: parseInt(limit),
-        totalPages: Math.ceil(count / limit)
+      data: {
+        sales,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(count / limit)
+        }
       }
     });
 
@@ -283,7 +285,7 @@ exports.getById = async (req, res) => {
       return res.status(404).json({ error: 'Venta no encontrada' });
     }
 
-    res.json(sale);
+    res.json({ data: sale });
 
   } catch (error) {
     console.error('Error al obtener venta:', error);
@@ -358,28 +360,60 @@ exports.cancel = async (req, res) => {
 // Obtener resumen de ventas (para dashboard)
 exports.getSummary = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
-    const where = { paymentStatus: { [sequelize.Sequelize.Op.ne]: 'cancelled' } };
+    const baseWhere = { paymentStatus: { [sequelize.Sequelize.Op.ne]: 'cancelled' } };
+    
+    // Calcular fechas
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    if (startDate && endDate) {
-      where.createdAt = {
-        [sequelize.Sequelize.Op.between]: [new Date(startDate), new Date(endDate)]
-      };
-    }
-
-    const summary = await Sale.findAll({
-      where,
+    // Ventas de hoy
+    const todaySales = await Sale.findAll({
+      where: {
+        ...baseWhere,
+        createdAt: { [sequelize.Sequelize.Op.gte]: todayStart }
+      },
       attributes: [
-        [sequelize.fn('COUNT', sequelize.col('id')), 'totalSales'],
-        [sequelize.fn('SUM', sequelize.col('total_amount')), 'totalRevenue'],
-        [sequelize.fn('AVG', sequelize.col('total_amount')), 'averageTicket']
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total_amount')), 0), 'total']
       ],
       raw: true
     });
 
-    // Ventas por método de pago
+    // Ventas de la semana
+    const weekSales = await Sale.findAll({
+      where: {
+        ...baseWhere,
+        createdAt: { [sequelize.Sequelize.Op.gte]: weekStart }
+      },
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total_amount')), 0), 'total']
+      ],
+      raw: true
+    });
+
+    // Ventas del mes
+    const monthSales = await Sale.findAll({
+      where: {
+        ...baseWhere,
+        createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+      },
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total_amount')), 0), 'total']
+      ],
+      raw: true
+    });
+
+    // Ventas por método de pago (últimos 30 días)
     const byPaymentMethod = await Sale.findAll({
-      where,
+      where: {
+        ...baseWhere,
+        createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+      },
       attributes: [
         'paymentMethod',
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
@@ -389,7 +423,7 @@ exports.getSummary = async (req, res) => {
       raw: true
     });
 
-    // Productos más vendidos
+    // Productos más vendidos (últimos 30 días)
     const topProducts = await SaleItem.findAll({
       attributes: [
         'productId',
@@ -399,7 +433,10 @@ exports.getSummary = async (req, res) => {
       include: [{
         model: Sale,
         as: 'sale',
-        where,
+        where: {
+          ...baseWhere,
+          createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+        },
         attributes: []
       }, {
         model: Product,
@@ -414,9 +451,16 @@ exports.getSummary = async (req, res) => {
     });
 
     res.json({
-      summary: summary[0] || { totalSales: 0, totalRevenue: 0, averageTicket: 0 },
-      byPaymentMethod,
-      topProducts
+      data: {
+        todaySales: parseFloat(todaySales[0]?.total || 0),
+        todayCount: parseInt(todaySales[0]?.count || 0),
+        weekSales: parseFloat(weekSales[0]?.total || 0),
+        weekCount: parseInt(weekSales[0]?.count || 0),
+        monthSales: parseFloat(monthSales[0]?.total || 0),
+        monthCount: parseInt(monthSales[0]?.count || 0),
+        byPaymentMethod: byPaymentMethod || [],
+        topProducts: topProducts || []
+      }
     });
 
   } catch (error) {
