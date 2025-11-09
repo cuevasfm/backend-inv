@@ -213,7 +213,7 @@ exports.getAll = async (req, res) => {
     }
 
     if (startDate && endDate) {
-      where.createdAt = {
+      where.created_at = {
         [sequelize.Sequelize.Op.between]: [new Date(startDate), new Date(endDate)]
       };
     }
@@ -234,7 +234,7 @@ exports.getAll = async (req, res) => {
       where,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']],
+      order: [['created_at', 'DESC']],
       include: [
         {
           model: SaleItem,
@@ -373,7 +373,7 @@ exports.getSummary = async (req, res) => {
     const todaySales = await Sale.findAll({
       where: {
         ...baseWhere,
-        createdAt: { [sequelize.Sequelize.Op.gte]: todayStart }
+        created_at: { [sequelize.Sequelize.Op.gte]: todayStart }
       },
       attributes: [
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
@@ -386,7 +386,7 @@ exports.getSummary = async (req, res) => {
     const weekSales = await Sale.findAll({
       where: {
         ...baseWhere,
-        createdAt: { [sequelize.Sequelize.Op.gte]: weekStart }
+        created_at: { [sequelize.Sequelize.Op.gte]: weekStart }
       },
       attributes: [
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
@@ -399,7 +399,7 @@ exports.getSummary = async (req, res) => {
     const monthSales = await Sale.findAll({
       where: {
         ...baseWhere,
-        createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+        created_at: { [sequelize.Sequelize.Op.gte]: monthStart }
       },
       attributes: [
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
@@ -412,21 +412,21 @@ exports.getSummary = async (req, res) => {
     const byPaymentMethod = await Sale.findAll({
       where: {
         ...baseWhere,
-        createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+        created_at: { [sequelize.Sequelize.Op.gte]: monthStart }
       },
       attributes: [
-        'paymentMethod',
+        'payment_method',
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
         [sequelize.fn('SUM', sequelize.col('total_amount')), 'total']
       ],
-      group: ['paymentMethod'],
+      group: ['payment_method'],
       raw: true
     });
 
     // Productos más vendidos (últimos 30 días)
     const topProducts = await SaleItem.findAll({
       attributes: [
-        'productId',
+        'product_id',
         [sequelize.fn('SUM', sequelize.col('quantity')), 'totalQuantity'],
         [sequelize.fn('SUM', sequelize.col('subtotal')), 'totalRevenue']
       ],
@@ -435,7 +435,7 @@ exports.getSummary = async (req, res) => {
         as: 'sale',
         where: {
           ...baseWhere,
-          createdAt: { [sequelize.Sequelize.Op.gte]: monthStart }
+          created_at: { [sequelize.Sequelize.Op.gte]: monthStart }
         },
         attributes: []
       }, {
