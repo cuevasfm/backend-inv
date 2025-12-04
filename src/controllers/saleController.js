@@ -427,8 +427,8 @@ exports.getSummary = async (req, res) => {
     const topProducts = await SaleItem.findAll({
       attributes: [
         'product_id',
-        [sequelize.fn('SUM', sequelize.col('quantity')), 'totalQuantity'],
-        [sequelize.fn('SUM', sequelize.col('subtotal')), 'totalRevenue']
+        [sequelize.fn('SUM', sequelize.col('SaleItem.quantity')), 'totalQuantity'],
+        [sequelize.fn('SUM', sequelize.col('SaleItem.subtotal')), 'totalRevenue']
       ],
       include: [{
         model: Sale,
